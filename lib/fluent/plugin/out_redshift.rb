@@ -22,6 +22,7 @@ class RedshiftOutput < BufferedOutput
 
   config_param :record_log_tag, :string, :default => 'log'
   # s3
+  config_param :s3_region, :string, :default => 'ap-northeast-1'
   config_param :aws_key_id, :string, :secret => true, :default => nil,
                :desc => "AWS access key id to access s3 bucket."
   config_param :aws_sec_key, :string, :secret => true, :default => nil,
@@ -131,8 +132,9 @@ DESC
         :secret_access_key => @aws_sec_key
       }
     end
-    options[:endpoint] = @s3_endpoint if @s3_endpoint
-    @s3 = AWS::S3::Client.new(options)
+    # options[:endpoint] = @s3_endpoint if @s3_endpoint
+    options[:region] = @s3_region
+    @s3 = Aws::S3::Resource.new(options)
     @bucket = @s3.bucket(@s3_bucket)
     @redshift_connection = RedshiftConnection.new(@db_conf)
   end
@@ -170,9 +172,7 @@ DESC
     s3path = create_s3path(@bucket, @path)
 
     # upload gz to s3
-    @bucket.object(s3path).put_object(:body => Pathname.new(tmp.path),
-                                  :acl => "bucket_owner_full_control",
-                                  :server_side_encryption => @s3_server_side_encryption)
+    @bucket.object(s3path).upload_file(tmp.path)
 
     # close temp file
     tmp.close!
